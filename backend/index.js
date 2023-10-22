@@ -1,128 +1,139 @@
-const express = require('express');
-const cors = require('cors');
+const express = require("express");
+const joi = require("joi");
+const morgan = require("morgan");
 
 //server init
 const app = express();
 
-//data point
-let notes = [
-    {
-        id: 1,
-        content: "HTML is easy",
-        important: true
-    },
-    {
-        id: 2,
-        content: "Browser can execute only JavaScript",
-        important: false
-    },
-    {
-        id: 3,
-        content: "GET and POST are the most important methods of HTTP protocol",
-        important: true
-    }
-]
-
 //middlewares
 app.use(express.json());
-app.use(cors());
-app.use(express.static("dist"));
 
-const requestLogger = (request, response, next) => {
-    console.log('Method:', request.method)
-    console.log('Path:  ', request.path)
-    console.log('Body:  ', request.body)
-    console.log('---')
-    next()
-}
+//# morgan
+morgan.token("reqBody", (req, res) => {
+   return JSON.stringify(req.body);
+});
 
-app.use(requestLogger);
+const customFormat = ':method :url :status :res[content-length] - :response-time ms :reqBody';
 
-// routes
-//homepage
-app.get('/', (request, response) => {
-    response.send('<h1>Hello World!</h1>')
-})
+app.use(morgan(customFormat));
 
-//GET all
-app.get('/api/notes', (request, response) => {
-    response.json(notes)
-})
-
-//GET by id
-app.get('/api/notes/:id', (request, response) => {
-    const id = Number(request.params.id)
-    const note = notes.find(note => note.id === id)
-
-    if (note) {
-        response.json(note)
-    } else {
-        response.status(404).end()
+//data point
+let persons = [
+    {
+        "id": 1,
+        "name": "Arto Hellas",
+        "number": "040-123456"
+    },
+    {
+        "id": 2,
+        "name": "Ada Lovelace",
+        "number": "39-44-5323523"
+    },
+    {
+        "id": 3,
+        "name": "Dan Abramov",
+        "number": "12-43-234345"
+    },
+    {
+        "id": 4,
+        "name": "Mary Poppendieck",
+        "number": "39-23-6423122"
     }
-})
-
-//DELETE by id
-app.delete('/api/notes/:id', (request, response) => {
-    const id = Number(request.params.id)
-    notes = notes.filter(note => note.id !== id)
-
-    response.status(204).end()
-})
-
-//POST new note
-const generateId = () => {
-    const maxId = notes.length > 0
-        ? Math.max(...notes.map(n => n.id))
-        : 0
-    return maxId + 1
-}
-
-app.post('/api/notes', (request, response) => {
-    const body = request.body
-
-    if (!body.content) {
-        return response.status(400).json({
-            error: 'content missing'
-        })
-    }
-
-    const note = {
-        content: body.content,
-        important: body.important || false,
-        id: generateId(),
-    }
-
-    notes = notes.concat(note)
-
-    response.json(note)
-})
-
-// app.put('/api/notes/:id', (req, res) => {
-//     console.log(req.body);
-//     const note = req.body;
-//     const id = note.id;
-//     const updatedNote = {
-//         ...note,
-//         important: !note.important
-//     };
-//     console.log(updatedNote);
-    
-//     const newNotes = notes.map((note) => (note.id !== id ? note : updatedNote));
-//     notes = newNotes;
-//     // res.send("Note's importance updated");
-//     console.log(notes);
-//     res.json(updatedNote);
-// })
-
-//middlewares that run after routes
-const unknownEndpoint = (request, response) => {
-    response.status(404).send({ error: 'unknown endpoint' })
-}
-
-app.use(unknownEndpoint)
+];
 
 //run server
-const PORT = process.env.POR || 3001;
-    app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`)
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+    console.log(`Server running on ${PORT}`);
+});
+
+//utility functions
+const genNewId = () => {
+    return Math.floor(Math.random() * (persons.length * 100));
+};
+
+//schemas
+const personSchema = joi.object({
+    id: joi.number(),
+    name: joi.string().required(),
+    number: joi.string().required()
+});
+
+//routes
+app.get("/info", (req, res) => {
+
+    const dateOptions = {
+        weekday: "short",
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        timeZoneName: 'long',
+        timeZone: 'GMT',
+    };
+
+    const date = new Date().toLocaleString("en-US", dateOptions);
+
+    res.send(
+    `<div>
+        <p>Phonebook has info for ${persons.length} people</p>
+        <p>${date}</p>
+    </div>`
+    )
+});
+
+app.get('/api/persons', (req, res) => {
+    res.json(persons);
 })
+
+app.get("/api/persons/:id", (req, res) => {
+    const id = Number(req.params.id);
+    const person = persons.find(p => p.id === id);
+    
+    if (!person) {
+        return res.status(404)
+            .send('The Person with the given ID was not found');
+    };
+
+    res.body = person;
+
+    res.json(person);
+});
+
+app.delete("/api/persons/:id", (req, res) => {
+    const id = Number(req.params.id);
+    const person = persons.find(p => p.id === id);
+    if (!person) {
+        return res.status(404)
+            .send('The Person with the given ID was not found');
+    };
+
+    persons = persons.filter(person => person.id !== id);
+
+    res.status(204)
+});
+
+app.post("/api/persons", (req, res) => {
+    const person = {
+        id: genNewId(),
+        name: req.body.name,
+        number: req.body.number
+    };
+
+    const { error } = personSchema.validate(person);
+
+    if (error) {
+        return res.status(400).json({ error: error.details[0].message });
+    };
+
+    if (persons.find(p => p.name === req.body.name)) {
+        return res.status(409).json('Name must be unique');
+    };
+
+    persons=[...persons, person];
+    res
+        // .json(person)
+        .send('is add to phonebook');
+});

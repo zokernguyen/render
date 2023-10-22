@@ -3,7 +3,7 @@ const Notification = ({ message }) => {
     return null;
   }
 
-  return <div className='error'>{message}</div>;
+  return <div className={message.type}>{message.content}</div>;
 };
 
 export default Notification;

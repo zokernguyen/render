@@ -1,0 +1,2 @@
+in progress: exercise 3.9-3.11
+Connect phonebook frontend app (from part2 exercise) to its backend server (from part3a exercise)
