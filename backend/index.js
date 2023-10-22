@@ -26,6 +26,7 @@ let notes = [
 //middlewares
 app.use(express.json());
 app.use(cors());
+app.use(express.static("dist"));
 
 const requestLogger = (request, response, next) => {
     console.log('Method:', request.method)
@@ -95,6 +96,23 @@ app.post('/api/notes', (request, response) => {
 
     response.json(note)
 })
+
+// app.put('/api/notes/:id', (req, res) => {
+//     console.log(req.body);
+//     const note = req.body;
+//     const id = note.id;
+//     const updatedNote = {
+//         ...note,
+//         important: !note.important
+//     };
+//     console.log(updatedNote);
+    
+//     const newNotes = notes.map((note) => (note.id !== id ? note : updatedNote));
+//     notes = newNotes;
+//     // res.send("Note's importance updated");
+//     console.log(notes);
+//     res.json(updatedNote);
+// })
 
 //middlewares that run after routes
 const unknownEndpoint = (request, response) => {
