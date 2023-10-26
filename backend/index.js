@@ -1,139 +1,158 @@
 const express = require("express");
-const joi = require("joi");
 const morgan = require("morgan");
+const cors = require('cors');
+
+const Person = require('./models/person.js')
+
+require("dotenv").config();
 
 //server init
 const app = express();
 
 //middlewares
+app.use(cors());
 app.use(express.json());
+app.use(express.static("dist"));
 
 //# morgan
 morgan.token("reqBody", (req, res) => {
-   return JSON.stringify(req.body);
+    return JSON.stringify(req.body);
 });
+
+//#error handler middleware
+const errorHandler = (error, req, res, next) => {
+    console.error(error);
+
+    switch (error.name) {
+        case "CastError":
+            res.status(400).json({ error: 'malformatted id' });
+            break;
+        case "ValidationError":
+            res.status(400).json({ error: error.message });
+            break;
+        default:
+            next(error);
+    }
+};
 
 const customFormat = ':method :url :status :res[content-length] - :response-time ms :reqBody';
 
 app.use(morgan(customFormat));
 
-//data point
-let persons = [
-    {
-        "id": 1,
-        "name": "Arto Hellas",
-        "number": "040-123456"
-    },
-    {
-        "id": 2,
-        "name": "Ada Lovelace",
-        "number": "39-44-5323523"
-    },
-    {
-        "id": 3,
-        "name": "Dan Abramov",
-        "number": "12-43-234345"
-    },
-    {
-        "id": 4,
-        "name": "Mary Poppendieck",
-        "number": "39-23-6423122"
-    }
-];
-
 //run server
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-    console.log(`Server running on ${PORT}`);
-});
-
-//utility functions
-const genNewId = () => {
-    return Math.floor(Math.random() * (persons.length * 100));
-};
-
-//schemas
-const personSchema = joi.object({
-    id: joi.number(),
-    name: joi.string().required(),
-    number: joi.string().required()
+    console.log(`Server running on port ${PORT}`);
 });
 
 //routes
-app.get("/info", (req, res) => {
 
-    const dateOptions = {
-        weekday: "short",
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        timeZoneName: 'long',
-        timeZone: 'GMT',
-    };
+// GET - info page
+app.get('/info', async (req, res) => {
+    try {
+        const dateOptions = {
+            weekday: "short",
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            timeZoneName: 'long',
+            timeZone: 'GMT',
+        };
 
-    const date = new Date().toLocaleString("en-US", dateOptions);
+        const date = new Date().toLocaleString("en-US", dateOptions);
 
-    res.send(
-    `<div>
+        const persons = await Person.find({});
+
+        res.send(
+            `<div>
         <p>Phonebook has info for ${persons.length} people</p>
         <p>${date}</p>
-    </div>`
-    )
+      </div>`
+        );
+    } catch (error) {
+        console.error("Error:", error.message);
+        res.status(500).send("Internal Server Error");
+    }
 });
 
+//GET - show all persons
 app.get('/api/persons', (req, res) => {
-    res.json(persons);
-})
-
-app.get("/api/persons/:id", (req, res) => {
-    const id = Number(req.params.id);
-    const person = persons.find(p => p.id === id);
-    
-    if (!person) {
-        return res.status(404)
-            .send('The Person with the given ID was not found');
-    };
-
-    res.body = person;
-
-    res.json(person);
+    Person.find({}).then(persons => res.json(persons));
 });
 
-app.delete("/api/persons/:id", (req, res) => {
-    const id = Number(req.params.id);
-    const person = persons.find(p => p.id === id);
-    if (!person) {
-        return res.status(404)
-            .send('The Person with the given ID was not found');
+//GET - filter person by id
+app.get("/api/persons/:id", async (req, res, next) => {
+    try {
+        const id = req.params.id;
+        const person = await Person.findById(id);
+
+        if (!person) res.status(404).end();
+
+        res.json(person);
+    } catch (error) {
+        next(error);
     };
-
-    persons = persons.filter(person => person.id !== id);
-
-    res.status(204)
 });
 
-app.post("/api/persons", (req, res) => {
-    const person = {
-        id: genNewId(),
-        name: req.body.name,
-        number: req.body.number
-    };
+//DELETE - remove person by id
+app.delete("/api/persons/:id", async (req, res, next) => {
+    try {
+        const id = req.params.id;
+        const delPerson = await Person.findByIdAndDelete(id);
 
-    const { error } = personSchema.validate(person);
-
-    if (error) {
-        return res.status(400).json({ error: error.details[0].message });
-    };
-
-    if (persons.find(p => p.name === req.body.name)) {
-        return res.status(409).json('Name must be unique');
-    };
-
-    persons=[...persons, person];
-    res
-        // .json(person)
-        .send('is add to phonebook');
+        if (!delPerson) {
+            return res.status(404)
+                .send('The Person with the given ID was not found');
+        };
+        res.status(204).end();
+    } catch (error) {
+        next(error);
+    }
 });
+
+// POST - add new person
+app.post("/api/persons", async (req, res, next) => {
+    const body = req.body;
+
+    try {
+        const person = new Person({
+            name: body.name,
+            number: body.number
+        });
+
+        const savedPerson = await person.save();
+
+        res.json(savedPerson);
+
+    } catch (error) {
+        next(error);
+    }
+});
+
+//PUT - update contact number
+app.put('/api/persons/:id', async (req, res, next) => {
+    try {
+        const { name, number } = req.body;
+        const updatedPerson = {
+            name,
+            number
+        };
+
+        const update = await Person.findByIdAndUpdate(
+            req.params.id,
+            updatedPerson,
+            {
+                new: true,
+                runValidators: true,
+                context: "query"
+            });
+        res.json(update);
+    } catch (error) {
+        next(error);
+    }
+});
+
+app.use(errorHandler);
