@@ -47,7 +47,7 @@ const App = () => {
     if (nameFlag && !numberFlag) {
       if (
         window.confirm(
-          `${newName} is already added to phonebook, replace the old number with a new one?`
+          `${newName} is already existed, replace that person's number with this new number?`
         )
       ) {
         newPerson = {
@@ -60,7 +60,7 @@ const App = () => {
           );
           setMsg({
             type: "success",
-            content: "Updated contact number"});
+            content: "Number updated"});
           setTimeout(() => {
             setMsg(null);
           }, 5000);
@@ -70,31 +70,44 @@ const App = () => {
     } else if (!nameFlag && numberFlag) {
       if (
         window.confirm(
-          `The number ${newNumber} is already belonged to an existing contact person, rename the old person with this new name?`
+          `The number ${newNumber} is belonged to an existing person, replace that person's name with this new name?`
         )
       ) {
         newPerson = {
           ...newPerson,
           id: allPerson.filter((p) => p.number === newNumber)[0].id,
         };
-        personServices.update(newPerson.id, newPerson).then(() => {
-          setAllPerson(
-            allPerson.map((p) => (p.id !== newPerson.id ? p : newPerson))
-          );
-          setMsg({
-            type: "success",
-            content: "Updated contact number"});
-          setTimeout(() => {
-            setMsg(null);
-          }, 5000);
-        });
+        personServices
+          .update(newPerson.id, newPerson)
+          .then(() => {
+            setAllPerson(
+              allPerson.map((p) => (p.id !== newPerson.id ? p : newPerson))
+            );
+            setMsg({
+              type: "success",
+              content: "Name updated",
+            });
+            setTimeout(() => {
+              setMsg(null);
+            }, 5000);
+          })
+          .catch((error) => {
+            setMsg({
+              type: "error",
+              content: error.response.data.error,
+            });
+            setTimeout(() => {
+              setMsg(null);
+            }, 5000);
+          });
       }
       return;
     } else if (nameFlag && numberFlag) {
       window.alert(`${newName} is added to phonebook`);
       return;
     } else {
-      personServices.addNew(newPerson).then((res) => {
+      personServices.addNew(newPerson)
+        .then((res) => {
         setAllPerson(allPerson.concat(res));
         setNewName("");
         setNewNumber("");
@@ -104,7 +117,16 @@ const App = () => {
         setTimeout(() => {
           setMsg(null);
         }, 5000);
-      });
+        })
+        .catch(error => {
+          setMsg({
+            type: "error",
+            content: error.response.data.error,
+          });
+          setTimeout(() => {
+            setMsg(null);
+          }, 5000);
+        })
       return;
     }
   };
@@ -125,7 +147,7 @@ const App = () => {
         .catch(error => {
           setMsg({
             type: "error",
-            content: `${name} has already been remove from server`
+            content: `${name} is already removed from phonebook`
           });
           setTimeout(() => {
             setMsg(null);
@@ -135,15 +157,21 @@ const App = () => {
     }
   };
 
-  const filterName = (name) => {
-    let result = allPerson.filter(
-      (p) => p.name.toLowerCase().indexOf(name.toLowerCase()) >= 0
-    );
-    return result;
-  };
+const filterName = (name) => {
+  if (!name) {
+    return allPerson; // Return all persons when filter is empty
+  }
+
+  return allPerson.filter((p) =>
+    p.name.toLowerCase().includes(name.toLowerCase())
+  );
+};
 
   const namesToShow = filterName(filter);
-
+    
+    // filterName(filter);
+     console.log(namesToShow); 
+ 
   const isDuplicate = (value, key) => {
     return allPerson.some((person) => person[key] === value);
   };

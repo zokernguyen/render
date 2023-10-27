@@ -17,13 +17,15 @@ const Person = ({ person, handleDeletePerson }) => {
 
 const PersonList = ({ namesToShow, handleDeletePerson }) => {
   return (
-    <>
+    <div>
       {namesToShow.map((person) => (
-        <div key={person.id}>
+        <div
+          key={person.id}
+        >
           <Person person={person} handleDeletePerson={handleDeletePerson} />
         </div>
       ))}
-    </>
+    </div>
   );
 };
 
