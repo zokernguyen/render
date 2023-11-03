@@ -1,25 +1,27 @@
+const _ = require('lodash')
+
 const dummy = () => {
     return 1;
 };
 
-const totalLikes = (list) => {
+const totalLikes = (blogsList) => {
     const reducer = (sum, item) => {
         return sum + item.likes;
     };
 
-    return list.length === 0
+    return blogsList.length === 0
         ? 0
-        : list.reduce(reducer, 0);
+        : blogsList.reduce(reducer, 0);
 };
 
-const favoriteBlog = (list) => {
-    if (list.length === 0) return "Empty list";
+const favoriteBlog = (blogsList) => {
+    if (blogsList.length === 0) return "Empty blogsList";
 
-    let mostLikedBlog = list[0];
+    let mostLikedBlog = blogsList[0];
 
-    for (let i = 1; i < list.length; i++) {
-        if (list[i].likes > mostLikedBlog.likes) {
-            mostLikedBlog = list[i];
+    for (let i = 1; i < blogsList.length; i++) {
+        if (blogsList[i].likes > mostLikedBlog.likes) {
+            mostLikedBlog = blogsList[i];
         }
     }
 
@@ -30,9 +32,43 @@ const favoriteBlog = (list) => {
     }
 };
 
+const mostBlogs = (blogsList) => {
+
+    const blogsCount = _.countBy(blogsList, 'author')
+    const maxBlogsCount = _.max(_.values(blogsCount));
+    const mostBlogsAuthors = _.reduce(blogsCount, (result, count, author) => {
+        if (count === maxBlogsCount) {
+            result.push(author);
+        }
+        return result;
+    }, []);
+
+    const theChosenOne = {
+        author: _.sample(mostBlogsAuthors),
+        blogs: maxBlogsCount
+    }
+
+    return theChosenOne;
+}
+
+const mostLikes = (blogsList) => {
+    const authorLikesCount = _.chain(blogsList)
+        .groupBy('author')
+        .map((blogsArray, author) => ({
+            author,
+            likes: _.sumBy(blogsArray, 'likes'),
+        }))
+        .value();
+
+    const mostLikesAuthor = _.maxBy(authorLikesCount, 'likes');
+
+    return mostLikesAuthor;
+};
 
 module.exports = {
     dummy,
     totalLikes,
-    favoriteBlog
+    favoriteBlog,
+    mostBlogs,
+    mostLikes
 };
