@@ -1,4 +1,5 @@
-const Blog = require('../models/blog')
+const Blog = require('../models/blog');
+const User = require('../models/user');
 
 const dummyBlog = {
     _id: "5a422a851b54a676234e69f7",
@@ -7,6 +8,12 @@ const dummyBlog = {
     url: "https://testyourcode.com/",
     likes: 5,
     __v: 0
+};
+
+const dummyUser = {
+    username: "zoker",
+    name: "Tin Nguyen",
+    password: "123456"
 };
 
 const listWithOneBlog = [
@@ -71,13 +78,31 @@ const listWithManyBlogs = [
     }
 ];
 
+const usersList = [
+    {
+        username: "eddi",
+        name: "Edsger W. Dijkstra",
+        password: "654321"
+    },
+    {
+        username: "MiCha",
+        name: "Michael Chan",
+        password: "password"
+    },
+    {
+        username: "RoMa",
+        name: "Robert C. Martin",
+        password: "admin"
+    },
+];
+
 const loadBlogById = async (id) => {
     const selectedBlog = await Blog.findById(id);
     return selectedBlog;
 }
 
 const loadAllBlogs = async (req, res) => {
-    const allBlogs = await Blog.find({})
+    const allBlogs = await Blog.find({});
     return allBlogs.map(blog => blog.toJSON());
 
 };
@@ -88,11 +113,19 @@ const loadLatestBlog = async () => {
     return latestBlog;
 };
 
+const loadAllUsers = async () => {
+    const users = await User.find({});
+    return users.map(user => user.toJSON());   
+}
+
 module.exports = {
     listWithOneBlog,
     listWithManyBlogs,
     dummyBlog,
     loadBlogById,
     loadAllBlogs,
-    loadLatestBlog
+    loadLatestBlog,
+    dummyUser,
+    usersList,
+    loadAllUsers
 };
