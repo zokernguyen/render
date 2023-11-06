@@ -10,9 +10,19 @@ const testHelper = require('./test_helper');
 
 const _ = require('lodash');
 
+let token;
+
 beforeEach(async () => {
     await Blog.deleteMany({});
     await Blog.insertMany(testHelper.listWithManyBlogs);
+
+    //login and get token
+    const validUsser = {
+        username: "Zoker",
+        password: 'zoker666'
+    }
+    const loginRes = await api.post('/api/login').send(validUsser);
+    token = loginRes.body.token;
 });
 
 describe('GET request', () => {
@@ -48,10 +58,11 @@ describe('GET request', () => {
 
 describe('POST requests', () => {
 
-    test('POST standard blog', async () => {
+    test('add blog success with a valid blog', async () => {
         const newBlog = testHelper.dummyBlog;
 
-        await api.post('/api/blogs')
+       await api.post('/api/blogs')
+            .set('Authorization', `Bearer ${token}`)
             .send(newBlog)
             .expect(201)
             .expect('Content-Type', /application\/json/)
@@ -63,10 +74,11 @@ describe('POST requests', () => {
         expect(addedBlog.title).toBe(newBlog.title);
     });
 
-    test('POST blog without likes', async () => {
+    test('set likes to 0 when adding a blog without likes', async () => {
         const newBlog = testHelper.dummyBlog;
 
         await api.post('/api/blogs')
+            .set('Authorization', `Bearer ${token}`)
             .send(newBlog)
 
         const addedBlog = await testHelper.loadLatestBlog();
@@ -74,25 +86,58 @@ describe('POST requests', () => {
         expect(addedBlog.likes).toBe(0);
     });
 
-    test('POST blog without title/url', async () => {
+    test('add blog fail without title/url', async () => {
+        const newBlog = {
+            author: "Tester404",
+            likes: 3
+        };
+
+        await api.post('/api/blogs')
+            .set('Authorization', `Bearer ${token}`)
+            .send(newBlog)
+            .expect(400);
+    });
+
+    test('add blog fail if token is not provided', async () => {
         const newBlog = testHelper.dummyBlog;
 
         await api.post('/api/blogs')
             .send(newBlog)
-            .expect(400);
-    });
+            .expect(401)
+    })
 });
 
 describe('DELETE request', () => {
 
     test('delete success by using a valid blog id', async () => {
         const allBlogs = await testHelper.loadAllBlogs();
-        const blogToDelete = allBlogs[0];
-        const response = await api.delete(`/api/blogs/${blogToDelete.id}`)
+
+        const blog = {
+            title: "Testing delete blog",
+            author: "Zoker",
+            url: "http://www.zoker.com",
+            likes: 5
+        };
+
+        //add a new blog for the testing valid user
+        await api.post('/api/blogs')
+            .set('Authorization', `Bearer ${token}`)
+            .send(blog)
+            .expect(201);
+
+        //delete new added blog
+
+        const blogToDelete = await Blog.findOne({ title: blog.title });
+
+        const blogId = blogToDelete.toJSON().id;
+
+        await api
+            .delete(`/api/blogs/${blogId}`)
+            .set('Authorization', `Bearer ${token}`)
             .expect(204)
 
         const newBlogsList = await testHelper.loadAllBlogs();
-        expect(newBlogsList).toHaveLength(allBlogs.length - 1);
+        expect(newBlogsList).toHaveLength(allBlogs.length);
         expect(newBlogsList).not.toContainEqual(blogToDelete);
     });
 
@@ -101,6 +146,12 @@ describe('DELETE request', () => {
         const response = await api.delete(`/api/blogs/${mockedId}`)
             .expect(404)
     });
+
+    test('fail without token provided', async () => {
+
+        await api.delete('/api/blogs/a-random-id')
+            .expect(401)
+    })
 });
 
 describe('PUT requests', () => {
@@ -112,12 +163,12 @@ describe('PUT requests', () => {
         await api.put(`/api/blogs/${blogToUpdate.id}`)
             .send({ ...blogToUpdate, likes: newLikes })
             .expect(200);
-        
+
         const updatedBlog = await testHelper.loadBlogById(blogToUpdate.id);
         expect(updatedBlog.likes).toBe(newLikes);
     });
 
-    test.only('update fail (404) by using an invalid id', async () => {
+    test('update fail (404) by using an invalid id', async () => {
         const mockedId = '5a423b891b54a676234d17fa';
         await api.put(`/api/blogs/${mockedId}`)
             .expect(404)

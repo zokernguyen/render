@@ -24,19 +24,23 @@ const tokenExtractor = (req, res, next) => {
 };
 
 const userExtractor = async (req, res, next) => {
-    let userId;
 
-    if (req.params.id) {
-        const blog = await Blog.findById(req.params.id);
-        userId = blog.user.toString()
-    } else if (req.get('authorization')) {
-        const token = tokenExtractor(req, res, next);
-        const decodedToken = jwt.verify(token, process.env.SECRET);
-        userId = decodedToken.id.toString();
+    if (!req.token) {
+        res.status(401)
+            .json({ error: 'un-authorized action, please login to continue' });
     }
 
-    req.user = await User.findById(userId);
-    console.log(req.user);
+    let decodedToken = jwt.verify(req.token, process.env.SECRET);
+
+    const id = decodedToken.id;
+
+    if (!id) {
+        res.status(401).json({ error: 'invalid token' });
+    }
+
+    const user = await User.findById(id);
+
+    req.user = user;
 
     next();
 };

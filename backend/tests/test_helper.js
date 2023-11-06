@@ -1,19 +1,20 @@
+const { application } = require('express');
 const Blog = require('../models/blog');
 const User = require('../models/user');
 
 const dummyBlog = {
     _id: "5a422a851b54a676234e69f7",
-    // title: "Backend testing with supertest & jest",
-    author: "Zoker Nguyen",
+    title: "Backend testing with supertest & jest",
+    author: "Zoker",
     url: "https://testyourcode.com/",
     likes: 5,
     __v: 0
 };
 
 const dummyUser = {
-    username: "zoker",
-    name: "Tin Nguyen",
-    password: "123456"
+    username: "groot",
+    name: "Grooty Woody",
+    password: "groot"
 };
 
 const listWithOneBlog = [
@@ -94,6 +95,11 @@ const usersList = [
         name: "Robert C. Martin",
         password: "admin"
     },
+    {
+        username: "Zoker",
+        name: "Tin Nguyen",
+        passwordHash: "$2b$10$2Tub1z/k3FvZPE/gN5XcOeKrT3R57XsKt/QyK8gkbTY.JrYWWeq4y"
+    }
 ];
 
 const loadBlogById = async (id) => {
@@ -127,5 +133,5 @@ module.exports = {
     loadLatestBlog,
     dummyUser,
     usersList,
-    loadAllUsers
+    loadAllUsers,
 };

@@ -1,7 +1,7 @@
 const blogsRouter = require('express').Router();
 const Blog = require('../models/blog');
 const User = require('../models/user');
-const jwt = require('jsonwebtoken');
+const middleware = require('../utils/middleware');
 
 blogsRouter.get('/', async (req, res) => {
     const blogs = await Blog.find({})
@@ -25,15 +25,9 @@ blogsRouter.get('/:id', async (req, res) => {
     }
 });
 
-blogsRouter.post('/', async (req, res) => {
+blogsRouter.post('/', middleware.userExtractor, async (req, res) => {
 
     const user = req.user
-
-    if (user) {
-        return res
-            .status(401)
-            .json({ error: 'invalid token' });
-    }
 
     const body = req.body;
 
@@ -55,19 +49,18 @@ blogsRouter.post('/', async (req, res) => {
     user.blogs = user.blogs.concat(savedBlog._id);
     await user.save();
 
-    res.status(201).json(savedBlog);
+    res
+        .status(201)
+        .json(savedBlog);
 });
 
-blogsRouter.delete('/:id', async (req, res) => {
+blogsRouter.delete('/:id', middleware.userExtractor, async (req, res) => {
 
     const user = req.user;
 
-    if (!user) {
-        res.status(404).json({ error: "Un-authorized action. Please login to perform this action." })
-    }
+    const blogId = req.params.id;
+    const blogToDelete = await Blog.findById(blogId);
 
-    const id = req.params.id;//blog's id
-    const blogToDelete = await Blog.findById(id);
     if (!blogToDelete) {
         res.status(404).json({ error: 'Blog with given id does not exist' })
     }
@@ -78,7 +71,10 @@ blogsRouter.delete('/:id', async (req, res) => {
         return res.status(401).json({ error: "Un-authorized action. You don't have permission to delete other's blog." })
     }
 
-    await Blog.findByIdAndRemove(id);
+    await Blog.findByIdAndRemove(blogId);
+
+    user.blogs = await user.blogs.filter(id => id.toString() !== blogId);
+    await user.save();
 
     res.status(204).end();
 });
